@@ -47,27 +47,27 @@ extra-dependencies = ["mypy>=1.0.0", "pytest"]
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/fairclient tests}"
 
-[tool.hatch.envs.hatch-test]
+[tool.hatch.envs.test]
 dependencies = [
   "pytest",
   "pytest-mock",
   "requests-mock",
   "pytest-cov",
   "freezegun",
+  "coverage[toml]>=6.2",
+  "lxml"
 ]
 
-[[tool.hatch.envs.hatch-test.matrix]]
+[[tool.hatch.envs.test.matrix]]
 python = ["3.8", "3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
 
 
-[tool.hatch.envs.coverage]
-detached = true
-dependencies = ["coverage[toml]>=6.2", "lxml"]
-
-[tool.hatch.envs.coverage.scripts]
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
 combine = "coverage combine {args}"
-report-xml = "coverage xml"
-report-uncovered-html = "coverage html --skip-covered --skip-empty"
+cov-report = ["- coverage combine", "coverage report", "coverage xml"]
+cov = ["test-cov", "cov-report"]
 
 [tool.coverage.run]
 source_pkgs = ["fairclient"]
@@ -81,7 +81,6 @@ tests = ["tests", "*/fairclient/tests"]
 
 [tool.coverage.report]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
-
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["INP001", "PLR2004", "S101", "TID252", "N803"]

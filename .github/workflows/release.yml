@@ -1,66 +1,99 @@
-name: Build and release
+# SPDX-FileCopyrightText: 2024 Stichting Health-RI
+# SPDX-FileContributor: 2024 PNED G.I.E.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Make Github release
 
 on:
-    release:
-      types: [published]
-
-
-env:
-  PYTHON_VERSION: "3.12"
-
-permissions:
-    contents: read
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version increment (major, minor, patch)'
+        required: true
+        default: 'patch'
 
 jobs:
-    build:
-        name: Build Python distribution
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
+  ort:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oss-review-toolkit/ort-ci-github-action@v1
+        with:
+          allow-dynamic-versions: "true"
+          fail-on: "issues"
+          run: "cache-dependencies,cache-scan-results,labels,analyzer,evaluator,advisor,reporter,upload-results"
 
-            - name: Set up Python ${{ env.PYTHON_VERSION }}
-              uses: actions/setup-python@v5
-              with:
-                python-version: ${{ env.PYTHON_VERSION }}
+  versioning:
+    runs-on: ubuntu-latest
+    needs: ort
+    outputs:
+      new_tag: ${{ steps.tagging.outputs.new_tag }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Install Hatch
-              uses: pypa/hatch@install
-        
-            - name: Run static analysis
-              run: hatch fmt --check
-        
-            - name: Check types
-              run: hatch run types:check
+      - name: Set Git User Identity
+        run: |
+          git config --local user.email "Health-RI-admin@users.noreply.github.com"
+          git config --local user.name "Health-RI Admin" 
 
-            - name: Run tests
-              run: hatch test
+      - name: Fetch Latest Tag and Increment Version
+        id: tagging
+        run: |
+          LATEST_TAG=$(git tag --sort=-creatordate | head -n 1)
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract Major, Minor, Patch
+          IFS='.' read -r MAJOR MINOR PATCH <<<"${LATEST_TAG//v/}"
+          INCREMENT=${{ github.event.inputs.version }}
+          echo "Updating : $INCREMENT version"
+          
+          case "$INCREMENT" in
+            major) ((MAJOR++)); MINOR=0; PATCH=0 ;;
+            minor) ((MINOR++)); PATCH=0 ;;
+            patch|*) ((PATCH++)) ;;
+          esac
 
-            - name: Build package
-              run: hatch build
+          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          echo "Pushing this tag: $NEW_TAG"
+          
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+          git push origin "$NEW_TAG"
 
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                name: python-artifacts
-                path: dist/*
-                if-no-files-found: error
+          echo "New tag pushed: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
-    publish-pypi:
-        name: Publish to PyPI
-        needs: build
-        runs-on: ubuntu-latest
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: versioning
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-        permissions:
-          id-token: write
+      - name: Install GitHub CLI
+        run: sudo apt-get install -y gh
 
-        steps:
-            - name: Download Python artifacts
-              uses: actions/download-artifact@v4
-              with:
-                  name: python-artifacts
-                  path: dist
+      - name: Generate and Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_TAG="${{ needs.versioning.outputs.new_tag }}"
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | sed -n '2p')
 
-            - name: Push Python artifacts to PyPI
-              uses: pypa/gh-action-pypi-publish@v1.12.4
-              with:
-                  skip-existing: true
+          echo "Creating GitHub release for $LATEST_TAG from previous release $PREVIOUS_TAG"
+          
+          gh release create "$LATEST_TAG" \
+            --title "Release $LATEST_TAG" \
+            --generate-notes \
+            --notes-start-tag "$PREVIOUS_TAG"
+
+  call-generate-changelog:
+    needs: [versioning, publish-release]
+    uses: ./.github/workflows/generate_changelog.yml
+    with:
+      tag: ${{ needs.versioning.outputs.new_tag }}
