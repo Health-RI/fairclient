@@ -1,8 +1,7 @@
 name: Build and release to PyPI
 
 on:
-    release:
-      types: [published]
+  workflow_dispatch:
 
 
 env:
@@ -55,7 +54,7 @@ jobs:
 
         steps:
             - name: Download Python artifacts
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v5
               with:
                   name: python-artifacts
                   path: dist
