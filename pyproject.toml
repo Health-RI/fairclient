@@ -26,7 +26,11 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["sparqlwrapper~=2.0", "rdflib>=7.0,<7.7"]
+dependencies = [
+  "sparqlwrapper~=2.0", 
+  "rdflib>=7.0,<7.7",
+  "requests~=2.34.2"
+]
 
 [project.urls]
 Documentation = "https://github.com/health-ri/fairclient#readme"
@@ -55,7 +59,7 @@ dependencies = [
   "pytest-cov",
   "freezegun",
   "coverage[toml]>=6.2",
-  "lxml"
+  "lxml",
 ]
 
 [[tool.hatch.envs.test.matrix]]
