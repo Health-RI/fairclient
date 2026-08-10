@@ -35,8 +35,3 @@ docker compose down -v
 The dataset's `dct:isPartOf` carries a `__CATALOG_UUID__` placeholder that
 `upload_data.py` replaces with the URI of the catalog it just created.
 
-## Running the upload script against the FDP from the host
-
-`fdp.test` only resolves inside the compose network. To run `upload_data.py` yourself,
-either run it in a container on that network or add `127.0.0.1 fdp.test` to `/etc/hosts`
-and publish the FDP port.
