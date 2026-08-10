@@ -1,0 +1,60 @@
+services:
+    fdp.test:
+        image: fairdata/fairdatapoint:1.18.1
+        depends_on:
+            - mongo
+            - graphdb
+            - graphdb-import
+        volumes:
+            - ./fdp/application.yml:/fdp/application.yml:ro
+
+    fdp-client:
+        image: healthri/fdp-client:1.0.16
+        depends_on:
+            - fdp.test
+        ports:
+            - 8081:80
+        environment:
+            - FDP_HOST=fdp.test
+
+    mongo:
+        image: mongo:4.0.12
+        volumes:
+            - mongo-data:/data/db
+
+    graphdb:
+        image: ontotext/graphdb:10.8.2
+        ports:
+            - 7201:7200
+        volumes:
+            - graphdb-data:/opt/graphdb/home
+
+    graphdb-import:
+        image: ontotext/graphdb:10.8.2
+        depends_on:
+            - graphdb
+        volumes:
+            - graphdb-data:/opt/graphdb/home
+            - ./graphdb/import:/var/graphdb/import:ro
+        entrypoint: [ "/opt/graphdb/dist/bin/importrdf" ]
+        command: [ "preload", "-Dgraphdb.home=/opt/graphdb/home", "-f", "-c", "/var/graphdb/import/fdp/repo-config.ttl", "/var/graphdb/import/fdp/data.ttl" ]
+
+    # Uploads the test catalog and dataset using the local fairclient checkout.
+    fdp-init:
+        image: python:3.12-slim
+        depends_on:
+            - fdp.test
+        volumes:
+            - ./fdp/upload_data.py:/workspace/upload_data.py:ro
+            - ./fdp/data:/workspace/data:ro
+            - ./fdp/patch_fairclient_pyproject.py:/workspace/patch_fairclient_pyproject.py:ro
+            - ..:/workspace/fairclient:ro
+        working_dir: /workspace
+        entrypoint: [ "sh", "-c" ]
+        # The checkout is mounted read-only and git cannot read its .git in the container,
+        # so copy it out and drop hatch-vcs before installing.
+        command: [ "cp -r fairclient /tmp/fairclient && python patch_fairclient_pyproject.py && pip install --no-cache-dir /tmp/fairclient && python upload_data.py" ]
+
+volumes:
+    mongo-data:
+    graphdb-data:
