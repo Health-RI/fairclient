@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
+from urllib.parse import urlparse
 
 import requests
 from rdflib import Graph, URIRef
@@ -126,14 +127,50 @@ class FDPClient(BasicAPIClient):
             The response from the FDP
         """
         self._change_content_type("text/turtle")
-        logger.debug("Putting metadata to %s", resource_uri)
-        return self.update(path=resource_uri, data=metadata.serialize(format="turtle"))
+        request_url = self._to_request_url(resource_uri)
+        logger.debug("Putting metadata to %s", request_url)
+        return self.update(path=request_url, data=metadata.serialize(format="turtle"))
 
     def get_data(self, path: str) -> requests.Response:
-        return self.get(path=path)
+        return self.get(path=self._to_request_url(path))
 
     def delete_record(self, path: str) -> requests.Response:
-        return self.delete(path=path)
+        return self.delete(path=self._to_request_url(path))
+
+    def _to_request_url(self, resource_uri: str) -> str:
+        """Re-anchors a resource URI onto the base URL of this client
+
+        From FDP 1.17 onwards the identifiers an FDP hands out are derived from its
+        configured persistent URL rather than from the URL it is reached on. This applies
+        to the ``Location`` header of a POST, but equally to the subjects returned by a
+        SPARQL query of the triplestore. Behind a reverse proxy such an identifier may use
+        a different scheme, host or port than the one used to reach the FDP, and is then
+        not connectable. Only the path is reused; the base URL of this client is
+        authoritative for where requests are sent.
+
+        Relative paths are passed through, so this is safe to apply to any argument that
+        may be either a full record URI or a path relative to the base URL.
+
+        Parameters
+        ----------
+        resource_uri : str
+            URI of a record (e.g. a ``Location`` header or a SPARQL subject), or a path
+            relative to the base URL of this client
+
+        Returns
+        -------
+        str
+            URL pointing at the same record on the host this client talks to
+        """
+        parsed = urlparse(str(resource_uri))
+        if not parsed.scheme and not parsed.netloc:
+            # A relative path, urljoin in the underlying client resolves this correctly
+            return str(resource_uri)
+
+        request_url = f"{self.base_url}{parsed.path}"
+        if request_url != str(resource_uri):
+            logger.debug("Rewrote resource URI %s to %s", resource_uri, request_url)
+        return request_url
 
     def publish_record(self, record_url: str):
         """Changes the status of an FDP record to "Published"
@@ -144,7 +181,7 @@ class FDPClient(BasicAPIClient):
             URL of the record that is to be published
         """
         self._change_content_type("application/json")
-        path = f"{record_url}/{FDPEndPoints.state}"
+        path = f"{self._to_request_url(record_url)}/{FDPEndPoints.state}"
         data = '{"current": "PUBLISHED"}'
         self.update(path=path, data=data)
 
