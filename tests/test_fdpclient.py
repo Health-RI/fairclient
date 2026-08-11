@@ -138,14 +138,15 @@ def test_fdp_post_serialised(
 
 
 def test_fdp_update_serialised(requests_mock, fdp_client_mock: FDPClient):
-    requests_mock.put("http://fdp.example.com/dataset/test", text="")
+    # The client is based on https, so the record URI is re-anchored onto that
+    requests_mock.put("https://fdp.example.com/dataset/test", text="")
 
     metadata = MagicMock(spec=Graph)
     metadata.serialize.return_value = ""
     # Ensure it's valid? Enforce lowercase?
     fdp_client_mock.update_serialized("http://fdp.example.com/dataset/test", metadata)
 
-    assert requests_mock.last_request.url == "http://fdp.example.com/dataset/test"
+    assert requests_mock.last_request.url == "https://fdp.example.com/dataset/test"
     assert requests_mock.last_request.headers["Content-Type"] == "text/turtle"
     assert requests_mock.last_request.headers["Authorization"] == "Bearer 1234abcd"
     assert requests_mock.last_request.method == "PUT"
@@ -191,6 +192,94 @@ def test_fdp_create_and_publish(requests_mock, fdp_client_mock):
     assert requests_mock.last_request.headers["Content-Type"] == "application/json"
     assert requests_mock.last_request.method == "PUT"
     assert requests_mock.last_request.json() == {"current": "PUBLISHED"}
+
+
+@pytest.mark.parametrize(
+    ("location", "expected"),
+    [
+        # FDP >=1.17 behind a proxy drops the port from the persistent identifier
+        ("http://localhost/dataset/12345678", "http://localhost:8081/dataset/12345678"),
+        # Persistent identifier on a wholly different host than the FDP is reached on
+        ("http://fdp-1.test/dataset/12345678", "http://localhost:8081/dataset/12345678"),
+        # Differing scheme
+        ("https://localhost:8081/dataset/12345678", "http://localhost:8081/dataset/12345678"),
+        # Already connectable, must be left alone
+        ("http://localhost:8081/dataset/12345678", "http://localhost:8081/dataset/12345678"),
+    ],
+)
+def test_fdp_to_request_url(requests_mock, location, expected):
+    requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
+    fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
+
+    assert fdp_client._to_request_url(location) == expected
+
+
+def test_fdp_create_and_publish_unconnectable_location(requests_mock):
+    """A Location header that is not connectable must not be used as a request target.
+
+    Reproduces FDP 1.18.1 behind a reverse proxy, which returns a persistent identifier
+    without the published port. Publishing must still go to the client's own base URL.
+    """
+    requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
+    requests_mock.post(
+        "http://localhost:8081/dataset",
+        status_code=201,
+        headers={"Location": "http://localhost/dataset/12345678"},
+    )
+    state_mock = requests_mock.put("http://localhost:8081/dataset/12345678/meta/state")
+
+    fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
+    fdp_subject = fdp_client.create_and_publish("dataset", Graph())
+
+    # The persistent identifier is returned unchanged, it is the record's identity
+    assert fdp_subject == URIRef("http://localhost/dataset/12345678")
+
+    # ...but the publish request went to the host this client can actually reach
+    assert state_mock.call_count == 1
+    assert requests_mock.last_request.url == "http://localhost:8081/dataset/12345678/meta/state"
+    assert requests_mock.last_request.json() == {"current": "PUBLISHED"}
+
+
+def test_fdp_update_serialized_unconnectable_uri(requests_mock):
+    """A persistent identifier from SPARQL must not be used as a request target.
+
+    ``add_or_update_dataset`` takes the subject URI from the triplestore, which holds the
+    FDP's persistent identifiers. Those are derived from the persistent URL and need not be
+    connectable, so the update has to go to this client's own base URL.
+    """
+    requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
+    update_mock = requests_mock.put("http://localhost:8081/dataset/12345678")
+
+    fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
+    fdp_client.update_serialized("http://localhost:8080/dataset/12345678", Graph())
+
+    assert update_mock.call_count == 1
+    assert requests_mock.last_request.url == "http://localhost:8081/dataset/12345678"
+    assert requests_mock.last_request.method == "PUT"
+
+
+@pytest.mark.parametrize("method", ["get_data", "delete_record"])
+def test_fdp_get_delete_unconnectable_uri(requests_mock, method):
+    """GET and DELETE take record URIs too, and must re-anchor them the same way."""
+    requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
+    requests_mock.get("http://localhost:8081/dataset/12345678", text="")
+    requests_mock.delete("http://localhost:8081/dataset/12345678", status_code=204)
+
+    fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
+    getattr(fdp_client, method)("http://localhost:8080/dataset/12345678")
+
+    assert requests_mock.last_request.url == "http://localhost:8081/dataset/12345678"
+
+
+def test_fdp_to_request_url_relative_path(requests_mock):
+    """Relative paths are passed through untouched, the base client resolves them."""
+    requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
+    fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
+
+    # Relative path without leading slash
+    assert fdp_client._to_request_url("dataset/12345678") == "dataset/12345678"
+    # Relative path with leading slash
+    assert fdp_client._to_request_url("/dataset/12345678") == "/dataset/12345678"
 
 
 def test_fdp_node_removal():
