@@ -12,10 +12,11 @@ docker compose up
 The `fdp-init` service installs `fairclient` from this checkout (the parent directory)
 and uploads the test data once the FDP is up.
 
-| Service    | URL                     |
-| ---------- | ----------------------- |
-| FDP client | <http://localhost:8081> |
-| GraphDB    | <http://localhost:7201> |
+| Service    | URL                        |
+| ---------- | -------------------------- |
+| FDP client | <http://localhost:8081>    |
+| GraphDB    | <http://localhost:7201>    |
+| MongoDB    | `mongodb://localhost:27017` |
 
 FDP credentials: `albert.einstein@example.com` / `password`.
 
