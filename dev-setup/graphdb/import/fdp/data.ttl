@@ -1,0 +1,3 @@
+@prefix ex: <http://example.org/> .
+
+ex:dataset ex:hasTitle "Sample FDP dataset" .

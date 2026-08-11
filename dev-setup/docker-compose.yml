@@ -1,0 +1,59 @@
+services:
+    fdp.test:
+        image: fairdata/fairdatapoint:1.18.1
+        depends_on:
+            - mongo
+            - graphdb
+            - graphdb-import
+        volumes:
+            - ./fdp/application.yml:/fdp/application.yml:ro
+
+    fdp-client:
+        image: healthri/fdp-client:1.0.16
+        depends_on:
+            - fdp.test
+        ports:
+            - 8081:80
+        environment:
+            - FDP_HOST=fdp.test
+
+    mongo:
+        image: mongo:4.0.12
+        ports:
+            - 27017:27017
+        volumes:
+            - mongo-data:/data/db
+
+    graphdb:
+        image: ontotext/graphdb:10.8.2
+        ports:
+            - 7201:7200
+        volumes:
+            - graphdb-data:/opt/graphdb/home
+
+    graphdb-import:
+        image: ontotext/graphdb:10.8.2
+        depends_on:
+            - graphdb
+        volumes:
+            - graphdb-data:/opt/graphdb/home
+            - ./graphdb/import:/var/graphdb/import:ro
+        entrypoint: [ "/opt/graphdb/dist/bin/importrdf" ]
+        command: [ "preload", "-Dgraphdb.home=/opt/graphdb/home", "-f", "-c", "/var/graphdb/import/fdp/repo-config.ttl", "/var/graphdb/import/fdp/data.ttl" ]
+
+    # Uploads the test catalog and dataset using the local fairclient checkout.
+    fdp-init:
+        image: python:3.12-slim
+        depends_on:
+            - fdp.test
+        volumes:
+            - ..:/workspace
+        working_dir: /workspace
+        environment:
+            - SETUPTOOLS_SCM_PRETEND_VERSION=1.0.0
+        entrypoint: [ "sh", "-c" ]
+        command: [ "pip install -e .[dev] && python dev-setup/fdp/upload_data.py" ]
+
+volumes:
+    mongo-data:
+    graphdb-data:

@@ -1,0 +1,27 @@
+@prefix dct: <http://purl.org/dc/terms/>.
+@prefix foaf: <http://xmlns.com/foaf/0.1/>.
+@prefix vcard: <http://www.w3.org/2006/vcard/ns#>.
+@prefix dcat: <http://www.w3.org/ns/dcat#>.
+@prefix fdp: <http://fdp.test/>.
+@prefix cat: <http://fdp.test/catalog/>.
+
+fdp:new
+    a dcat:Dataset, dcat:Resource;
+    dct:description "Test dataset - description";
+    dct:identifier "testdataset-identifier";
+    dct:isPartOf cat:__CATALOG_UUID__;
+    dct:publisher
+            [
+                a foaf:Agent;
+                foaf:name "Test dataset - publisher"
+            ];
+    dct:title "Test dataset";
+    dcat:contactPoint <http://fdp.test/contactpoint>;
+    dcat:keyword "testkeyword";
+    dcat:theme <http://publications.europa.eu/resource/authority/data-theme/HEAL>;
+    dcat:version "1.0".
+
+<http://fdp.test/contactpoint>
+    a vcard:Kind;
+    vcard:fn "Test dataset - Contact point";
+    vcard:hasEmail <mailto:test@example.com>.
