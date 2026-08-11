@@ -45,15 +45,12 @@ services:
         depends_on:
             - fdp.test
         volumes:
-            - ./fdp/upload_data.py:/workspace/upload_data.py:ro
-            - ./fdp/data:/workspace/data:ro
-            - ./fdp/patch_fairclient_pyproject.py:/workspace/patch_fairclient_pyproject.py:ro
-            - ..:/workspace/fairclient:ro
+            - ..:/workspace
         working_dir: /workspace
+        environment:
+            - SETUPTOOLS_SCM_PRETEND_VERSION=1.0.0
         entrypoint: [ "sh", "-c" ]
-        # The checkout is mounted read-only and git cannot read its .git in the container,
-        # so copy it out and drop hatch-vcs before installing.
-        command: [ "cp -r fairclient /tmp/fairclient && python patch_fairclient_pyproject.py && pip install --no-cache-dir /tmp/fairclient && python upload_data.py" ]
+        command: [ "pip install -e .[dev] && python dev-setup/fdp/upload_data.py" ]
 
 volumes:
     mongo-data:
