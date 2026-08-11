@@ -276,7 +276,10 @@ def test_fdp_to_request_url_relative_path(requests_mock):
     requests_mock.post("http://localhost:8081/tokens", json={"token": "1234abcd"})
     fdp_client = FDPClient("http://localhost:8081", "user@example.com", "pass")
 
+    # Relative path without leading slash
     assert fdp_client._to_request_url("dataset/12345678") == "dataset/12345678"
+    # Relative path with leading slash
+    assert fdp_client._to_request_url("/dataset/12345678") == "/dataset/12345678"
 
 
 def test_fdp_node_removal():
