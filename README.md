@@ -13,7 +13,7 @@ SPDX-License-Identifier: MIT
 [![Codecov](https://img.shields.io/codecov/c/github/health-ri/fairclient?logo=codecov)](https://app.codecov.io/github/Health-RI/fairclient)
 
 A simple client for the REST API that a FAIR Data Point (FDP) provides. Specifically tuned for the
-FDP reference implementation.
+FDP reference implementation. Version v1.0.3 of `fairclient` supports FAIR Data Point 1.18.1. 
 
 ## Table of Contents
 
