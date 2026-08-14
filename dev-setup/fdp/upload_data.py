@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Upload test data to the dev FAIR Data Point.
 
 Pushes a catalog and a dataset, linked to that catalog, to the dev FDP.
@@ -15,8 +14,9 @@ import time
 from pathlib import Path
 
 import requests
-from fairclient.fdpclient import FDPClient
 from rdflib import DCAT, DCTERMS, RDF, Graph, URIRef
+
+from fairclient.fdpclient import FDPClient
 
 logger = logging.getLogger(__name__)
 

@@ -37,4 +37,4 @@ def test_404(basic_mock):
 
 def test_unknown_method(basic_mock):
     with pytest.raises(expected_exception=ValueError, match="Unsupported method"):
-        basic_mock._call_method("head", "head")  # noqa: SLF001
+        basic_mock._call_method("head", "head")

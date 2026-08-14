@@ -77,4 +77,8 @@ tests = ["tests", "*/fairclient/tests"]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["INP001", "PLR2004", "S101", "TID252", "N803"]
+"tests/**" = ["INP001", "PLR2004", "S101", "TID252", "N803", "SLF001"]
+"dev-setup/**" = ["S105"]
+
+[tool.hatch.fmt]
+exclude = ["tests/**"]
