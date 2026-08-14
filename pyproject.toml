@@ -3,28 +3,26 @@
 # SPDX-License-Identifier: MIT
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "fairclient" 
-version = "1.0.3"
+version = "2.0.0"
 description = 'A FAIR Data Point client written in Python'
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = "MIT"
 keywords = ["FDP"]
 authors = [{ name = "Mark Janse", email = "mark.janse@health-ri.nl" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   "sparqlwrapper~=2.0", 
@@ -54,7 +52,7 @@ dependencies = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 
 [tool.hatch.envs.test.scripts]
@@ -77,4 +75,8 @@ tests = ["tests", "*/fairclient/tests"]
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["INP001", "PLR2004", "S101", "TID252", "N803"]
+"tests/**" = ["INP001", "PLR2004", "S101", "TID252", "N803", "SLF001"]
+"dev-setup/**" = ["S105"]
+
+[tool.hatch.fmt]
+exclude = ["tests/**"]

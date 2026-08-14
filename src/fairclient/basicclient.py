@@ -46,7 +46,6 @@ class BasicAPIClient:
 
         logger.debug("%s: %s", method, url)
 
-        response = None
         response = self.session.request(
             method,
             url,
@@ -60,7 +59,10 @@ class BasicAPIClient:
         try:
             response.raise_for_status()
         except HTTPError as e:
-            logger.exception("%d %s: %s", e.response.status_code, e.response.reason, e.response.text)
+            if e.response:
+                logger.exception("%d %s: %s", e.response.status_code, e.response.reason, e.response.text)
+            else:
+                logger.exception("Unknown error occurred: Call method response was None")
             raise
 
         return response
